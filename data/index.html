@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cold Chain Telemetry Control Center</title>
+
+    <!-- Google Fonts: Inter (Primary) & JetBrains Mono (Telemetry/Data) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS stylesheet -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Chart.js for real-time telemetry rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Control Center Header -->
+        <header class="header">
+            <div class="brand-section">
+                <div class="brand-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div class="brand-title">
+                    <h1>COLDCHAIN CORE TELEMETRY</h1>
+                    <div class="brand-subtitle">NODE: TX-DS18B20-01 &bull; PROTOCOL: ONEWIRE/ESP32</div>
+                </div>
+            </div>
+
+            <div class="profile-selector">
+                <label for="appSelect" class="profile-label">STORAGE PROFILE:</label>
+                <select id="appSelect">
+                    <option value="vaccine">Vaccine Storage (+2°C to +8°C)</option>
+                    <option value="milk">Milk Storage (Raw) (0°C to +4°C)</option>
+                    <option value="food">Food Cold Room (0°C to +5°C)</option>
+                    <option value="frozen">Frozen Food Storage (≤ -18°C)</option>
+                    <option value="pharma">Pharma Medicines (+2°C to +8°C)</option>
+                    <option value="blood">Blood Bank (+2°C to +6°C)</option>
+                    <option value="icecream">Ice Cream Storage (≤ -18°C)</option>
+                </select>
+            </div>
+
+            <div class="system-meta">
+                <div class="meta-pill">
+                    <span class="status-dot"></span>
+                    <span id="connectionStatus">ONLINE</span>
+                </div>
+                <div class="meta-pill">
+                    <span>IP:</span>
+                    <span id="deviceIp">192.168.1.105</span>
+                </div>
+                <div class="meta-pill">
+                    <span>RATE:</span>
+                    <span>5s</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI & Status Widgets Grid -->
+        <section class="kpi-grid">
+            <!-- Widget 1: Primary Temperature Metric KPI -->
+            <div class="card">
+                <div class="widget-header">
+                    <span class="widget-title">CURRENT TEMPERATURE</span>
+                    <svg class="widget-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-value-container">
+                    <span id="currentTemp" class="kpi-number">--.-</span>
+                    <span class="kpi-unit">°C</span>
+                </div>
+                <div class="kpi-meta">
+                    <span>SENSOR: DS18B20</span>
+                    <span class="mono-meta">&bull; VARIANCE: ±0.1°C</span>
+                </div>
+                <div id="statusBadge" class="badge safe">INITIALIZING...</div>
+            </div>
+
+            <!-- Widget 2: Active Profile Thresholds -->
+            <div class="card">
+                <div class="widget-header">
+                    <span class="widget-title">ACTIVE THRESHOLDS</span>
+                    <svg class="widget-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    </svg>
+                </div>
+                <div class="kpi-value-container">
+                    <span id="kpiRange" class="kpi-number">+2.0° to +8.0°</span>
+                </div>
+                <div class="kpi-meta">
+                    <span id="kpiProfileName">Vaccine Storage</span>
+                </div>
+                <div class="telemetry-list" style="margin-top: 10px;">
+                    <div class="telemetry-item">
+                        <span class="label">CRITICAL LOW:</span>
+                        <span id="metaMin" class="val" style="color: var(--primary-cyan);">+2.0 °C</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">CRITICAL HIGH:</span>
+                        <span id="metaMax" class="val" style="color: var(--status-warning);">+8.0 °C</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 3: Excursions & Stability Status -->
+            <div class="card">
+                <div class="widget-header">
+                    <span class="widget-title">EXCURSION SUMMARY</span>
+                    <svg class="widget-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div class="kpi-value-container">
+                    <span id="excursionCount" class="kpi-number">0</span>
+                    <span class="kpi-unit">Alerts</span>
+                </div>
+                <div class="kpi-meta">
+                    <span id="complianceRate">100% IN COMPLIANCE</span>
+                </div>
+                <div class="telemetry-list" style="margin-top: 10px;">
+                    <div class="telemetry-item">
+                        <span class="label">TOTAL SAMPLES:</span>
+                        <span id="totalSamples" class="val">30</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">WINDOW PERIOD:</span>
+                        <span class="val">150s (5s Poll)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 4: Transmitter Node Hardware Metadata -->
+            <div class="card">
+                <div class="widget-header">
+                    <span class="widget-title">DEVICE TELEMETRY</span>
+                    <svg class="widget-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                    </svg>
+                </div>
+                <div class="telemetry-list" style="margin-top: 4px;">
+                    <div class="telemetry-item">
+                        <span class="label">MICROCONTROLLER:</span>
+                        <span class="val">ESP32-WROOM-32</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">SENSOR PIN:</span>
+                        <span class="val">GPIO 04 (OneWire)</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">ALARM RELAY LED:</span>
+                        <span id="ledStatus" class="val" style="color: var(--status-success);">GPIO 22 [NORMAL]</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">FS STORAGE:</span>
+                        <span class="val">LittleFS Mounted</span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="label">WIFI RSSI:</span>
+                        <span id="wifiRssi" class="val">-58 dBm (Excellent)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts Grid Section -->
+        <section class="charts-grid">
+            <!-- Real-Time History Line Chart -->
+            <div class="card chart-card-large">
+                <div class="widget-header">
+                    <span class="widget-title">LIVE TELEMETRY STREAM (LAST 150 SECONDS)</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Range Analysis Doughnut Chart -->
+            <div class="card chart-card-medium">
+                <div class="widget-header">
+                    <span class="widget-title">THERMAL STABILITY</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="zoneChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Threshold Comparison Bar Chart -->
+            <div class="card chart-card-medium">
+                <div class="widget-header">
+                    <span id="barTitle" class="widget-title">LIMIT COMPARISON</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Console Stream Log -->
+        <section class="console-card">
+            <div class="widget-header" style="margin-bottom: 8px;">
+                <span class="widget-title">REAL-TIME DATA STREAM & EVENT LOG</span>
+                <span class="mono-meta">FORMAT: JSON / TELEMETRY</span>
+            </div>
+            <div id="consoleLog" class="console-output">
+                <!-- Dynamic Log Entries -->
+            </div>
+        </section>
+
+        <!-- Standard Operating Guidelines Reference Table -->
+        <section class="table-card">
+            <div class="widget-header" style="margin-bottom: 8px;">
+                <span class="widget-title">STANDARD OPERATING GUIDELINES (WHO / FDA / CODEX)</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Application</th>
+                        <th>Standard Range</th>
+                        <th>Alert Threshold</th>
+                        <th>Standard / Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Vaccine Storage</strong></td>
+                        <td><span class="table-tag">+2°C to +8°C</span></td>
+                        <td class="table-mono">&lt;2°C or &gt;8°C</td>
+                        <td>WHO Vaccine Management Handbook (2020)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Milk Storage (Raw)</strong></td>
+                        <td><span class="table-tag">≤4°C</span></td>
+                        <td class="table-mono">&gt;4°C</td>
+                        <td>FAO Dairy Processing Guide</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Food Cold Room (Fresh)</strong></td>
+                        <td><span class="table-tag">0°C to +5°C</span></td>
+                        <td class="table-mono">&gt;5°C</td>
+                        <td>U.S. FDA Food Code, ASHRAE</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Frozen Food Storage</strong></td>
+                        <td><span class="table-tag">≤−18°C</span></td>
+                        <td class="table-mono">&gt;−15°C (warning)</td>
+                        <td>Codex Alimentarius CAC/RCP 1-1969</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Pharma Medicines</strong></td>
+                        <td><span class="table-tag">+2°C to +8°C</span></td>
+                        <td class="table-mono">&lt;2°C or &gt;8°C</td>
+                        <td>WHO Good Distribution Practices (GDP)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Blood Bank Refrigeration</strong></td>
+                        <td><span class="table-tag">+2°C to +6°C</span></td>
+                        <td class="table-mono">&lt;2°C or &gt;6°C</td>
+                        <td>WHO Blood Cold Chain Guidelines</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ice Cream Storage</strong></td>
+                        <td><span class="table-tag">≤−18°C</span></td>
+                        <td class="table-mono">&gt;−15°C</td>
+                        <td>International Dairy Federation (IDF)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <span>COLDCHAIN TRANSMITTER TELEMETRY SYSTEM &bull; ESP32 LITTLEFS &bull; INTER & JETBRAINS MONO UI</span>
+        </footer>
+    </div>
+
+    <!-- Script File -->
+    <script src="script.js"></script>
+</body>
+
+</html>
